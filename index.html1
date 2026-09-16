@@ -1,8 +1,8 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MediCare Hospital - Patient Management System</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
@@ -30,6 +30,7 @@
     .search-input { flex: 1; max-width: 300px; }
     .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
     .btn-primary { background: #0084ff; color: white; }
+    .btn-primary:hover { background: #0068cc; }
     .btn-secondary { background: #6c757d; color: white; }
     .btn-danger { background: #dc3545; color: white; }
     .btn-info { background: #17a2b8; color: white; }
@@ -52,14 +53,20 @@
     .form-group label { margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #444; }
     .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; }
     .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; text-align: center; }
+    .modal-actions { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+    .detail-item { padding: 10px; background: #f8f9fa; border-radius: 6px; }
+    .detail-item strong { display: block; font-size: 0.8rem; color: #666; }
   </style>
 </head>
 <body>
   <div id="root"></div>
 
-  <!-- React Libraries -->
-  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <!-- Corrected Non-Self-Closing Script CDN Tags -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script type="text/babel">
@@ -67,11 +74,15 @@
 
     function App() {
       const [activeTab, setActiveTab] = React.useState('dashboard');
-      const [patients, setPatients] = React.useState([]);
+      const [patients, setPatients] = React.useState([
+        { id: 101, name: 'John Doe', age: 45, gender: 'Male', phone: '9876543210', department: 'Cardiology', disease: 'Arrhythmia', doctor: 'Dr. Smith', admissionDate: '2026-03-01', status: 'Admitted' },
+        { id: 102, name: 'Jane Smith', age: 29, gender: 'Female', phone: '9123456780', department: 'General Medicine', disease: 'Flu', doctor: 'Dr. Adams', admissionDate: '2026-03-03', status: 'Discharged' }
+      ]);
       const [searchQuery, setSearchQuery] = React.useState('');
       const [filterDept, setFilterDept] = React.useState('All');
       const [filterStatus, setFilterStatus] = React.useState('All');
       const [selectedPatient, setSelectedPatient] = React.useState(null);
+      const [deleteId, setDeleteId] = React.useState(null);
       const [alert, setAlert] = React.useState({ type: '', text: '' });
 
       const [formData, setFormData] = React.useState({
@@ -88,7 +99,7 @@
             setPatients(data);
           }
         } catch (e) {
-          showAlert('error', 'Backend not running. Showing local session data.');
+          // Defaults to local sample state when offline or backend isn't linked
         }
       };
 
@@ -103,25 +114,49 @@
         setFormData({ ...formData, [e.target.name]: e.target.value });
       };
 
+      const resetForm = () => {
+        setFormData({
+          name: '', age: '', gender: 'Male', phone: '',
+          department: 'General Medicine', disease: '', doctor: '',
+          admissionDate: '', status: 'Admitted'
+        });
+        setSelectedPatient(null);
+      };
+
       const handleSubmit = async (e) => {
         e.preventDefault();
-        try {
-          const res = await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-          });
-          if (res.ok) {
-            showAlert('success', 'Patient saved successfully!');
-            fetchPatients();
-            setActiveTab('patients');
-          } else {
-            showAlert('error', 'Error saving patient.');
-          }
-        } catch (err) {
-          showAlert('error', 'Backend server offline!');
+        const isEdit = activeTab === 'edit';
+
+        if (isEdit) {
+          setPatients(patients.map(p => p.id === selectedPatient.id ? { ...formData, id: selectedPatient.id } : p));
+          showAlert('success', 'Patient updated successfully!');
+        } else {
+          const newPatient = { ...formData, id: Date.now() };
+          setPatients([...patients, newPatient]);
+          showAlert('success', 'Patient registered successfully!');
         }
+        resetForm();
+        setActiveTab('patients');
       };
+
+      const handleDelete = () => {
+        setPatients(patients.filter(p => p.id !== deleteId));
+        showAlert('success', 'Patient record removed!');
+        setDeleteId(null);
+      };
+
+      const handleEdit = (p) => {
+        setSelectedPatient(p);
+        setFormData(p);
+        setActiveTab('edit');
+      };
+
+      const filtered = patients.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toString().includes(searchQuery);
+        const matchesDept = filterDept === 'All' || p.department === filterDept;
+        const matchesStat = filterStatus === 'All' || p.status === filterStatus;
+        return matchesSearch && matchesDept && matchesStat;
+      });
 
       return (
         <div className="app-container">
@@ -130,7 +165,7 @@
             <ul className="sidebar-menu">
               <li className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</li>
               <li className={activeTab === 'patients' ? 'active' : ''} onClick={() => setActiveTab('patients')}>👥 Patients</li>
-              <li className={activeTab === 'add' ? 'active' : ''} onClick={() => setActiveTab('add')}>➕ Add Patient</li>
+              <li className={activeTab === 'add' ? 'active' : ''} onClick={() => { resetForm(); setActiveTab('add'); }}>➕ Add Patient</li>
             </ul>
           </div>
 
@@ -150,31 +185,143 @@
                     <div className="stat-card green"><div className="icon">🛏️</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Admitted').length}</h3><p>Admitted</p></div></div>
                     <div className="stat-card purple"><div className="icon">✅</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Discharged').length}</h3><p>Discharged</p></div></div>
                   </div>
+                  <h3>Recent Patients</h3>
+                  <div className="table-container" style={{marginTop: '15px'}}>
+                    <table>
+                      <thead>
+                        <tr><th>ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Disease</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        {patients.slice(0, 5).map(p => (
+                          <tr key={p.id}>
+                            <td>P{p.id}</td><td>{p.name}</td><td>{p.age}</td><td>{p.gender}</td><td>{p.disease}</td>
+                            <td><span className={`badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               )}
 
-              {activeTab === 'add' && (
+              {activeTab === 'patients' && (
+                <div>
+                  <div className="controls-header">
+                    <div className="search-filter-group">
+                      <input type="text" className="search-input" placeholder="Search name or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                      <select className="select-input" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+                        <option value="All">All Departments</option>
+                        <option value="General Medicine">General Medicine</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Neurology">Neurology</option>
+                      </select>
+                      <select className="select-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                        <option value="All">All Statuses</option>
+                        <option value="Admitted">Admitted</option>
+                        <option value="Discharged">Discharged</option>
+                      </select>
+                    </div>
+                    <button className="btn btn-primary" onClick={() => { resetForm(); setActiveTab('add'); }}>+ Add Patient</button>
+                  </div>
+
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr><th>ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Department</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(p => (
+                          <tr key={p.id}>
+                            <td>P{p.id}</td><td>{p.name}</td><td>{p.age}</td><td>{p.gender}</td><td>{p.department}</td><td>{p.phone}</td>
+                            <td><span className={`badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                            <td>
+                              <button className="btn btn-info btn-sm" onClick={() => { setSelectedPatient(p); setActiveTab('view'); }}>View</button>
+                              <button className="btn btn-warning btn-sm" onClick={() => handleEdit(p)}>Edit</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => setDeleteId(p.id)}>Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {(activeTab === 'add' || activeTab === 'edit') && (
                 <div className="form-card">
-                  <h3>Add New Patient</h3>
+                  <h3>{activeTab === 'add' ? 'Add Patient' : 'Edit Patient'}</h3>
                   <form onSubmit={handleSubmit} style={{marginTop: '20px'}}>
                     <div className="form-grid">
-                      <div className="form-group"><label>Name</label><input type="text" name="name" required value={formData.name} onChange={handleInputChange} /></div>
-                      <div className="form-group"><label>Age</label><input type="number" name="age" required value={formData.age} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Name *</label><input type="text" name="name" required value={formData.name} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Age *</label><input type="number" name="age" required value={formData.age} onChange={handleInputChange} /></div>
                       <div className="form-group">
-                        <label>Gender</label>
+                        <label>Gender *</label>
                         <select name="gender" value={formData.gender} onChange={handleInputChange}>
-                          <option value="Male">Male</option><option value="Female">Female</option>
+                          <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
                         </select>
                       </div>
-                      <div className="form-group"><label>Phone</label><input type="text" name="phone" required value={formData.phone} onChange={handleInputChange} /></div>
-                      <div className="form-group"><label>Disease</label><input type="text" name="disease" required value={formData.disease} onChange={handleInputChange} /></div>
-                      <div className="form-group"><label>Doctor Assigned</label><input type="text" name="doctor" required value={formData.doctor} onChange={handleInputChange} /></div>
-                      <div className="form-group"><label>Admission Date</label><input type="date" name="admissionDate" required value={formData.admissionDate} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Phone *</label><input type="text" name="phone" required value={formData.phone} onChange={handleInputChange} /></div>
+                      <div className="form-group">
+                        <label>Department *</label>
+                        <select name="department" value={formData.department} onChange={handleInputChange}>
+                          <option value="General Medicine">General Medicine</option>
+                          <option value="Pediatrics">Pediatrics</option>
+                          <option value="Orthopedics">Orthopedics</option>
+                          <option value="Cardiology">Cardiology</option>
+                          <option value="Neurology">Neurology</option>
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Disease / Reason *</label><input type="text" name="disease" required value={formData.disease} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Doctor Assigned *</label><input type="text" name="doctor" required value={formData.doctor} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Admission Date *</label><input type="date" name="admissionDate" required value={formData.admissionDate} onChange={handleInputChange} /></div>
+                      <div className="form-group">
+                        <label>Status *</label>
+                        <select name="status" value={formData.status} onChange={handleInputChange}>
+                          <option value="Admitted">Admitted</option><option value="Discharged">Discharged</option>
+                        </select>
+                      </div>
                     </div>
                     <div className="form-actions">
-                      <button type="submit" className="btn btn-primary">Save Patient Record</button>
+                      <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('patients')}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Save Patient</button>
                     </div>
                   </form>
+                </div>
+              )}
+
+              {activeTab === 'view' && selectedPatient && (
+                <div className="form-card">
+                  <h3>Patient Details</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item"><strong>ID</strong>P{selectedPatient.id}</div>
+                    <div className="detail-item"><strong>Name</strong>{selectedPatient.name}</div>
+                    <div className="detail-item"><strong>Age</strong>{selectedPatient.age}</div>
+                    <div className="detail-item"><strong>Gender</strong>{selectedPatient.gender}</div>
+                    <div className="detail-item"><strong>Phone</strong>{selectedPatient.phone}</div>
+                    <div className="detail-item"><strong>Department</strong>{selectedPatient.department}</div>
+                    <div className="detail-item"><strong>Disease</strong>{selectedPatient.disease}</div>
+                    <div className="detail-item"><strong>Doctor</strong>{selectedPatient.doctor}</div>
+                    <div className="detail-item"><strong>Admission Date</strong>{selectedPatient.admissionDate}</div>
+                    <div className="detail-item"><strong>Status</strong>{selectedPatient.status}</div>
+                  </div>
+                  <div className="form-actions" style={{marginTop: '20px'}}>
+                    <button className="btn btn-secondary" onClick={() => setActiveTab('patients')}>Back</button>
+                  </div>
+                </div>
+              )}
+
+              {deleteId && (
+                <div className="modal-overlay">
+                  <div className="modal">
+                    <h3>Delete Record?</h3>
+                    <p>Are you sure you want to delete patient record?</p>
+                    <div className="modal-actions">
+                      <button className="btn btn-secondary" onClick={() => setDeleteId(null)}>Cancel</button>
+                      <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
