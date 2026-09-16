@@ -4,6 +4,8 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MediCare Hospital - Patient Management System</title>
+  <!-- Chart.js CDN for Analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
     body { background-color: #f4f7f6; color: #333; }
@@ -16,7 +18,9 @@
     .main-content { flex: 1; display: flex; flex-direction: column; }
     .top-navbar { background-color: #ffffff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
     .content-body { padding: 30px; flex: 1; }
-    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    
+    /* Stats & Analytics Grid */
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 25px; }
     .stat-card { background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; }
     .stat-card .icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; }
     .stat-card.blue .icon { background: #e3f2fd; color: #1976d2; }
@@ -24,18 +28,31 @@
     .stat-card.purple .icon { background: #f3e5f5; color: #7b1fa2; }
     .stat-info h3 { font-size: 1.5rem; color: #222; }
     .stat-info p { font-size: 0.85rem; color: #666; }
+    
+    /* Bed Occupancy Tracker */
+    .occupancy-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
+    .progress-bar-container { background: #e9ecef; border-radius: 10px; height: 18px; overflow: hidden; margin-top: 10px; }
+    .progress-bar { background: linear-gradient(90deg, #28a745, #ffc107); height: 100%; transition: width 0.4s ease; }
+    
+    /* Analytics Section */
+    .dashboard-middle { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 25px; }
+    .chart-card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 25px; }
+
     .controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
     .search-filter-group { display: flex; gap: 10px; flex: 1; }
     .search-input, .select-input { padding: 10px 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; }
     .search-input { flex: 1; max-width: 300px; }
+    
     .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
     .btn-primary { background: #0084ff; color: white; }
     .btn-primary:hover { background: #0068cc; }
+    .btn-success { background: #28a745; color: white; }
     .btn-secondary { background: #6c757d; color: white; }
     .btn-danger { background: #dc3545; color: white; }
     .btn-info { background: #17a2b8; color: white; }
     .btn-warning { background: #ffc107; color: #212529; }
     .btn-sm { padding: 5px 10px; font-size: 0.8rem; margin-right: 5px; }
+    
     .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; text-align: left; }
     th, td { padding: 12px 15px; border-bottom: 1px solid #eee; }
@@ -46,7 +63,7 @@
     .badge-discharged { background: #e3f2fd; color: #1565c0; }
     .alert { padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; }
     .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    
     .form-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); max-width: 800px; }
     .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
     .form-group { display: flex; flex-direction: column; }
@@ -64,19 +81,19 @@
 <body>
   <div id="root"></div>
 
-  <!-- Corrected Non-Self-Closing Script CDN Tags -->
+  <!-- React & Babel CDNs -->
   <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 
   <script type="text/babel">
-    const API_URL = "http://localhost:8080/api/patients";
-
     function App() {
+      const TOTAL_BEDS = 50;
       const [activeTab, setActiveTab] = React.useState('dashboard');
       const [patients, setPatients] = React.useState([
         { id: 101, name: 'John Doe', age: 45, gender: 'Male', phone: '9876543210', department: 'Cardiology', disease: 'Arrhythmia', doctor: 'Dr. Smith', admissionDate: '2026-03-01', status: 'Admitted' },
-        { id: 102, name: 'Jane Smith', age: 29, gender: 'Female', phone: '9123456780', department: 'General Medicine', disease: 'Flu', doctor: 'Dr. Adams', admissionDate: '2026-03-03', status: 'Discharged' }
+        { id: 102, name: 'Jane Smith', age: 29, gender: 'Female', phone: '9123456780', department: 'General Medicine', disease: 'Flu', doctor: 'Dr. Adams', admissionDate: '2026-03-03', status: 'Discharged' },
+        { id: 103, name: 'Robert Lee', age: 62, gender: 'Male', phone: '9988776655', department: 'Orthopedics', disease: 'Fracture', doctor: 'Dr. Smith', admissionDate: '2026-03-05', status: 'Admitted' }
       ]);
       const [searchQuery, setSearchQuery] = React.useState('');
       const [filterDept, setFilterDept] = React.useState('All');
@@ -84,26 +101,42 @@
       const [selectedPatient, setSelectedPatient] = React.useState(null);
       const [deleteId, setDeleteId] = React.useState(null);
       const [alert, setAlert] = React.useState({ type: '', text: '' });
-
       const [formData, setFormData] = React.useState({
         name: '', age: '', gender: 'Male', phone: '',
         department: 'General Medicine', disease: '', doctor: '',
         admissionDate: '', status: 'Admitted'
       });
 
-      const fetchPatients = async () => {
-        try {
-          const res = await fetch(API_URL);
-          if (res.ok) {
-            const data = await res.json();
-            setPatients(data);
-          }
-        } catch (e) {
-          // Defaults to local sample state when offline or backend isn't linked
-        }
-      };
+      const chartRef = React.useRef(null);
+      const chartInstance = React.useRef(null);
 
-      React.useEffect(() => { fetchPatients(); }, []);
+      const admittedCount = patients.filter(p => p.status === 'Admitted').length;
+      const occupancyPercent = Math.round((admittedCount / TOTAL_BEDS) * 100);
+
+      React.useEffect(() => {
+        if (activeTab === 'dashboard' && chartRef.current) {
+          const deptCounts = patients.reduce((acc, p) => {
+            acc[p.department] = (acc[p.department] || 0) + 1;
+            return acc;
+          }, {});
+
+          if (chartInstance.current) chartInstance.current.destroy();
+
+          chartInstance.current = new Chart(chartRef.current, {
+            type: 'bar',
+            data: {
+              labels: Object.keys(deptCounts),
+              datasets: [{
+                label: 'Patients',
+                data: Object.values(deptCounts),
+                backgroundColor: '#0084ff',
+                borderRadius: 4
+              }]
+            },
+            options: { responsive: true, plugins: { legend: { display: false } } }
+          });
+        }
+      }, [activeTab, patients]);
 
       const showAlert = (type, text) => {
         setAlert({ type, text });
@@ -123,17 +156,15 @@
         setSelectedPatient(null);
       };
 
-      const handleSubmit = async (e) => {
+      const handleSubmit = (e) => {
         e.preventDefault();
-        const isEdit = activeTab === 'edit';
-
-        if (isEdit) {
+        if (activeTab === 'edit') {
           setPatients(patients.map(p => p.id === selectedPatient.id ? { ...formData, id: selectedPatient.id } : p));
-          showAlert('success', 'Patient updated successfully!');
+          showAlert('success', 'Patient record updated!');
         } else {
           const newPatient = { ...formData, id: Date.now() };
           setPatients([...patients, newPatient]);
-          showAlert('success', 'Patient registered successfully!');
+          showAlert('success', 'New patient registered!');
         }
         resetForm();
         setActiveTab('patients');
@@ -141,7 +172,7 @@
 
       const handleDelete = () => {
         setPatients(patients.filter(p => p.id !== deleteId));
-        showAlert('success', 'Patient record removed!');
+        showAlert('success', 'Record deleted successfully!');
         setDeleteId(null);
       };
 
@@ -149,6 +180,17 @@
         setSelectedPatient(p);
         setFormData(p);
         setActiveTab('edit');
+      };
+
+      const exportToCSV = () => {
+        const headers = "ID,Name,Age,Gender,Phone,Department,Disease,Doctor,Date,Status\n";
+        const rows = patients.map(p => `${p.id},${p.name},${p.age},${p.gender},${p.phone},${p.department},${p.disease},${p.doctor},${p.admissionDate},${p.status}`);
+        const blob = new Blob([headers + rows.join("\n")], { type: 'text/csv' });
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Hospital_Patients_${new Date().toISOString().slice(0,10)}.csv`;
+        a.click();
       };
 
       const filtered = patients.filter(p => {
@@ -172,7 +214,7 @@
           <div className="main-content">
             <div className="top-navbar">
               <h2>Hospital Management System</h2>
-              <div>👤 <strong>Admin</strong></div>
+              <button className="btn btn-success" onClick={exportToCSV}>📥 Export CSV</button>
             </div>
 
             <div className="content-body">
@@ -182,9 +224,25 @@
                 <div>
                   <div className="stats-grid">
                     <div className="stat-card blue"><div className="icon">👥</div><div className="stat-info"><h3>{patients.length}</h3><p>Total Patients</p></div></div>
-                    <div className="stat-card green"><div className="icon">🛏️</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Admitted').length}</h3><p>Admitted</p></div></div>
+                    <div className="stat-card green"><div className="icon">🛏️</div><div className="stat-info"><h3>{admittedCount}</h3><p>Admitted</p></div></div>
                     <div className="stat-card purple"><div className="icon">✅</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Discharged').length}</h3><p>Discharged</p></div></div>
                   </div>
+
+                  <div className="occupancy-card">
+                    <div style={{display: 'flex', justifyContent: 'space-between'}}>
+                      <strong>Live Bed Occupancy Rate</strong>
+                      <span>{admittedCount} / {TOTAL_BEDS} Beds Occupied ({occupancyPercent}%)</span>
+                    </div>
+                    <div className="progress-bar-container">
+                      <div className="progress-bar" style={{width: `${occupancyPercent}%`}}></div>
+                    </div>
+                  </div>
+
+                  <div className="chart-card">
+                    <h3 style={{marginBottom: '15px'}}>Department Analytics</h3>
+                    <canvas ref={chartRef} height="100"></canvas>
+                  </div>
+
                   <h3>Recent Patients</h3>
                   <div className="table-container" style={{marginTop: '15px'}}>
                     <table>
