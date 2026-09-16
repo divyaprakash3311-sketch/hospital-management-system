@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MediCare Hospital - Patient Management System</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+    body { background-color: #f4f7f6; color: #333; }
+    .app-container { display: flex; min-height: 100vh; }
+    .sidebar { width: 250px; background-color: #1a2530; color: #ffffff; display: flex; flex-direction: column; }
+    .sidebar-brand { padding: 20px; font-size: 1.2rem; font-weight: bold; background-color: #111822; }
+    .sidebar-menu { list-style: none; margin-top: 20px; }
+    .sidebar-menu li { padding: 15px 20px; cursor: pointer; transition: 0.2s; }
+    .sidebar-menu li:hover, .sidebar-menu li.active { background-color: #253545; border-left: 4px solid #00a8ff; }
+    .main-content { flex: 1; display: flex; flex-direction: column; }
+    .top-navbar { background-color: #ffffff; padding: 15px 30px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+    .content-body { padding: 30px; flex: 1; }
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .stat-card { background: #ffffff; padding: 20px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); display: flex; align-items: center; gap: 15px; }
+    .stat-card .icon { width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem; }
+    .stat-card.blue .icon { background: #e3f2fd; color: #1976d2; }
+    .stat-card.green .icon { background: #e8f5e9; color: #388e3c; }
+    .stat-card.purple .icon { background: #f3e5f5; color: #7b1fa2; }
+    .stat-info h3 { font-size: 1.5rem; color: #222; }
+    .stat-info p { font-size: 0.85rem; color: #666; }
+    .controls-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; gap: 15px; flex-wrap: wrap; }
+    .search-filter-group { display: flex; gap: 10px; flex: 1; }
+    .search-input, .select-input { padding: 10px 15px; border: 1px solid #ccc; border-radius: 6px; outline: none; }
+    .search-input { flex: 1; max-width: 300px; }
+    .btn { padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: 0.2s; }
+    .btn-primary { background: #0084ff; color: white; }
+    .btn-primary:hover { background: #0068cc; }
+    .btn-secondary { background: #6c757d; color: white; }
+    .btn-danger { background: #dc3545; color: white; }
+    .btn-info { background: #17a2b8; color: white; }
+    .btn-warning { background: #ffc107; color: #212529; }
+    .btn-sm { padding: 5px 10px; font-size: 0.8rem; margin-right: 5px; }
+    .table-container { background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; text-align: left; }
+    th, td { padding: 12px 15px; border-bottom: 1px solid #eee; }
+    th { background-color: #f8f9fa; color: #555; font-weight: 600; }
+    tr:hover { background-color: #f9f9f9; }
+    .badge { padding: 4px 8px; border-radius: 12px; font-size: 0.75rem; font-weight: bold; }
+    .badge-admitted { background: #e8f5e9; color: #2e7d32; }
+    .badge-discharged { background: #e3f2fd; color: #1565c0; }
+    .alert { padding: 12px 20px; border-radius: 6px; margin-bottom: 20px; }
+    .alert-success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+    .alert-error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+    .form-card { background: white; padding: 25px; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); max-width: 800px; }
+    .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+    .form-group { display: flex; flex-direction: column; }
+    .form-group label { margin-bottom: 6px; font-weight: 600; font-size: 0.9rem; color: #444; }
+    .form-group input, .form-group select { padding: 10px; border: 1px solid #ccc; border-radius: 6px; outline: none; }
+    .form-actions { display: flex; justify-content: flex-end; gap: 10px; }
+    .modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.5); display: flex; align-items: center; justify-content: center; z-index: 1000; }
+    .modal { background: white; padding: 25px; border-radius: 8px; width: 90%; max-width: 450px; text-align: center; }
+    .modal-actions { display: flex; justify-content: center; gap: 15px; margin-top: 20px; }
+    .detail-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; margin-top: 15px; }
+    .detail-item { padding: 10px; background: #f8f9fa; border-radius: 6px; }
+    .detail-item strong { display: block; font-size: 0.8rem; color: #666; }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <!-- React Dependencies via CDN -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <script type="text/babel">
+    const API_URL = "http://localhost:8080/api/patients";
+
+    function App() {
+      const [activeTab, setActiveTab] = React.useState('dashboard');
+      const [patients, setPatients] = React.useState([]);
+      const [searchQuery, setSearchQuery] = React.useState('');
+      const [filterDept, setFilterDept] = React.useState('All');
+      const [filterStatus, setFilterStatus] = React.useState('All');
+      const [selectedPatient, setSelectedPatient] = React.useState(null);
+      const [deleteId, setDeleteId] = React.useState(null);
+      const [alert, setAlert] = React.useState({ type: '', text: '' });
+
+      const [formData, setFormData] = React.useState({
+        name: '', age: '', gender: 'Male', phone: '',
+        department: 'General Medicine', disease: '', doctor: '',
+        admissionDate: '', status: 'Admitted'
+      });
+
+      const fetchPatients = async () => {
+        try {
+          const res = await fetch(API_URL);
+          const data = await res.json();
+          setPatients(data);
+        } catch (e) {
+          showAlert('error', 'Could not connect to Spring Boot server!');
+        }
+      };
+
+      React.useEffect(() => { fetchPatients(); }, []);
+
+      const showAlert = (type, text) => {
+        setAlert({ type, text });
+        setTimeout(() => setAlert({ type: '', text: '' }), 4000);
+      };
+
+      const handleInputChange = (e) => {
+        setFormData({ ...formData, [e.target.name]: e.target.value });
+      };
+
+      const resetForm = () => {
+        setFormData({
+          name: '', age: '', gender: 'Male', phone: '',
+          department: 'General Medicine', disease: '', doctor: '',
+          admissionDate: '', status: 'Admitted'
+        });
+        setSelectedPatient(null);
+      };
+
+      const handleSubmit = async (e) => {
+        e.preventDefault();
+        const isEdit = activeTab === 'edit';
+        const url = isEdit ? `${API_URL}/${selectedPatient.id}` : API_URL;
+        const method = isEdit ? 'PUT' : 'POST';
+
+        try {
+          const res = await fetch(url, {
+            method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+          });
+          if (res.ok) {
+            showAlert('success', isEdit ? 'Patient updated!' : 'Patient created!');
+            fetchPatients();
+            resetForm();
+            setActiveTab('patients');
+          }
+        } catch (err) {
+          showAlert('error', 'Operation failed.');
+        }
+      };
+
+      const handleDelete = async () => {
+        try {
+          await fetch(`${API_URL}/${deleteId}`, { method: 'DELETE' });
+          showAlert('success', 'Patient deleted successfully!');
+          setDeleteId(null);
+          fetchPatients();
+        } catch (err) {
+          showAlert('error', 'Delete failed.');
+        }
+      };
+
+      const handleEdit = (p) => {
+        setSelectedPatient(p);
+        setFormData(p);
+        setActiveTab('edit');
+      };
+
+      const filtered = patients.filter(p => {
+        const matchesSearch = p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.id.toString().includes(searchQuery);
+        const matchesDept = filterDept === 'All' || p.department === filterDept;
+        const matchesStat = filterStatus === 'All' || p.status === filterStatus;
+        return matchesSearch && matchesDept && matchesStat;
+      });
+
+      return (
+        <div className="app-container">
+          <div className="sidebar">
+            <div className="sidebar-brand">🏥 MediCare Hospital</div>
+            <ul className="sidebar-menu">
+              <li className={activeTab === 'dashboard' ? 'active' : ''} onClick={() => setActiveTab('dashboard')}>📊 Dashboard</li>
+              <li className={activeTab === 'patients' ? 'active' : ''} onClick={() => setActiveTab('patients')}>👥 Patients</li>
+              <li className={activeTab === 'add' ? 'active' : ''} onClick={() => { resetForm(); setActiveTab('add'); }}>➕ Add Patient</li>
+            </ul>
+          </div>
+
+          <div className="main-content">
+            <div className="top-navbar">
+              <h2>Hospital Management System</h2>
+              <div>👤 <strong>Admin</strong></div>
+            </div>
+
+            <div className="content-body">
+              {alert.text && <div className={`alert alert-${alert.type}`}>{alert.text}</div>}
+
+              {activeTab === 'dashboard' && (
+                <div>
+                  <div className="stats-grid">
+                    <div className="stat-card blue"><div className="icon">👥</div><div className="stat-info"><h3>{patients.length}</h3><p>Total Patients</p></div></div>
+                    <div className="stat-card green"><div className="icon">🛏️</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Admitted').length}</h3><p>Admitted</p></div></div>
+                    <div className="stat-card purple"><div className="icon">✅</div><div className="stat-info"><h3>{patients.filter(p => p.status === 'Discharged').length}</h3><p>Discharged</p></div></div>
+                  </div>
+                  <h3>Recent Patients</h3>
+                  <div className="table-container" style={{marginTop: '15px'}}>
+                    <table>
+                      <thead>
+                        <tr><th>ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Disease</th><th>Status</th></tr>
+                      </thead>
+                      <tbody>
+                        {patients.slice(0, 5).map(p => (
+                          <tr key={p.id}>
+                            <td>P{p.id}</td><td>{p.name}</td><td>{p.age}</td><td>{p.gender}</td><td>{p.disease}</td>
+                            <td><span className={`badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {activeTab === 'patients' && (
+                <div>
+                  <div className="controls-header">
+                    <div className="search-filter-group">
+                      <input type="text" className="search-input" placeholder="Search name or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+                      <select className="select-input" value={filterDept} onChange={e => setFilterDept(e.target.value)}>
+                        <option value="All">All Departments</option>
+                        <option value="General Medicine">General Medicine</option>
+                        <option value="Pediatrics">Pediatrics</option>
+                        <option value="Orthopedics">Orthopedics</option>
+                        <option value="Cardiology">Cardiology</option>
+                        <option value="Neurology">Neurology</option>
+                      </select>
+                      <select className="select-input" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+                        <option value="All">All Statuses</option>
+                        <option value="Admitted">Admitted</option>
+                        <option value="Discharged">Discharged</option>
+                      </select>
+                    </div>
+                    <button className="btn btn-primary" onClick={() => { resetForm(); setActiveTab('add'); }}>+ Add Patient</button>
+                  </div>
+
+                  <div className="table-container">
+                    <table>
+                      <thead>
+                        <tr><th>ID</th><th>Name</th><th>Age</th><th>Gender</th><th>Department</th><th>Phone</th><th>Status</th><th>Actions</th></tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(p => (
+                          <tr key={p.id}>
+                            <td>P{p.id}</td><td>{p.name}</td><td>{p.age}</td><td>{p.gender}</td><td>{p.department}</td><td>{p.phone}</td>
+                            <td><span className={`badge badge-${p.status.toLowerCase()}`}>{p.status}</span></td>
+                            <td>
+                              <button className="btn btn-info btn-sm" onClick={() => { setSelectedPatient(p); setActiveTab('view'); }}>View</button>
+                              <button className="btn btn-warning btn-sm" onClick={() => handleEdit(p)}>Edit</button>
+                              <button className="btn btn-danger btn-sm" onClick={() => setDeleteId(p.id)}>Delete</button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {(activeTab === 'add' || activeTab === 'edit') && (
+                <div className="form-card">
+                  <h3>{activeTab === 'add' ? 'Add Patient' : 'Edit Patient'}</h3>
+                  <form onSubmit={handleSubmit} style={{marginTop: '20px'}}>
+                    <div className="form-grid">
+                      <div className="form-group"><label>Name *</label><input type="text" name="name" required value={formData.name} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Age *</label><input type="number" name="age" required value={formData.age} onChange={handleInputChange} /></div>
+                      <div className="form-group">
+                        <label>Gender *</label>
+                        <select name="gender" value={formData.gender} onChange={handleInputChange}>
+                          <option value="Male">Male</option><option value="Female">Female</option><option value="Other">Other</option>
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Phone *</label><input type="text" name="phone" required value={formData.phone} onChange={handleInputChange} /></div>
+                      <div className="form-group">
+                        <label>Department *</label>
+                        <select name="department" value={formData.department} onChange={handleInputChange}>
+                          <option value="General Medicine">General Medicine</option>
+                          <option value="Pediatrics">Pediatrics</option>
+                          <option value="Orthopedics">Orthopedics</option>
+                          <option value="Cardiology">Cardiology</option>
+                          <option value="Neurology">Neurology</option>
+                        </select>
+                      </div>
+                      <div className="form-group"><label>Disease / Reason *</label><input type="text" name="disease" required value={formData.disease} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Doctor Assigned *</label><input type="text" name="doctor" required value={formData.doctor} onChange={handleInputChange} /></div>
+                      <div className="form-group"><label>Admission Date *</label><input type="date" name="admissionDate" required value={formData.admissionDate} onChange={handleInputChange} /></div>
+                      <div className="form-group">
+                        <label>Status *</label>
+                        <select name="status" value={formData.status} onChange={handleInputChange}>
+                          <option value="Admitted">Admitted</option><option value="Discharged">Discharged</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div className="form-actions">
+                      <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('patients')}>Cancel</button>
+                      <button type="submit" className="btn btn-primary">Save Patient</button>
+                    </div>
+                  </form>
+                </div>
+              )}
+
+              {activeTab === 'view' && selectedPatient && (
+                <div className="form-card">
+                  <h3>Patient Details</h3>
+                  <div className="detail-grid">
+                    <div className="detail-item"><strong>ID</strong>P{selectedPatient.id}</div>
+                    <div className="detail-item"><strong>Name</strong>{selectedPatient.name}</div>
+                    <div className="detail-item"><strong>Age</strong>{selectedPatient.age}</div>
+                    <div className="detail-item"><strong>Gender</strong>{selectedPatient.gender}</div>
+                    <div className="detail-item"><strong>Phone</strong>{selectedPatient.phone}</div>
+                    <div className="detail-item"><strong>Department</strong>{selectedPatient.department}</div>
+                    <div className="detail-item"><strong>Disease</strong>{selectedPatient.disease}</div>
+                    <div className="detail-item"><strong>Doctor</strong>{selectedPatient.doctor}</div>
+                    <div className="detail-item"><strong>Admission Date</strong>{selectedPatient.admissionDate}</div>
+                    <div className="detail-item"><strong>Status</strong>{selectedPatient.status}</div>
+                  </div>
+                  <div className="form-actions" style={{marginTop: '20px'}}>
+                    <button className="btn btn-secondary" onClick={() => setActiveTab('patients')}>Back</button>
+                  </div>
+                </div>
+              )}
+
+              {deleteId && (
+                <div className="modal-overlay">
+                  <div className="modal">
+                    <h3>Delete Record?</h3>
+                    <p>Are you sure you want to delete patient P{deleteId}?</p>
+                    <div className="modal-actions">
+                      <button className="btn btn-secondary" onClick={() => setDeleteId(null)}>Cancel</button>
+                      <button className="btn btn-danger" onClick={handleDelete}>Delete</button>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
